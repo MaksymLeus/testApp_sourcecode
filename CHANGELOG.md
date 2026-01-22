@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/MaksymLeus/testApp_sourcecode/compare/v2.0.0...v2.1.0) (2026-01-22)
+
+
+### Features
+
+* test v2 ([ed02c8a](https://github.com/MaksymLeus/testApp_sourcecode/commit/ed02c8a2a6457d965b64d098cc085a648c33a1cb))
+
 # [2.0.0](https://github.com/MaksymLeus/testApp_sourcecode/compare/v1.0.1...v2.0.0) (2026-01-22)
 
 ## [1.0.1](https://github.com/MaksymLeus/testApp_sourcecode/compare/v1.0.0...v1.0.1) (2026-01-22)
