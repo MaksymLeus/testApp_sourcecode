@@ -1,11 +1,11 @@
 # 🖥️ HostInfo
 
 <p>
-  <a href="#"><img src="https://img.shields.io/github/v/release/youruser/hostinfo?style=flat-square" alt="release"></a>
-  <a href="#"><img src="https://img.shields.io/github/actions/workflow/status/youruser/hostinfo/ci.yml?style=flat-square&label=CI" alt="ci status"></a>
-  <a href="#"><img src="https://img.shields.io/github/license/youruser/hostinfo?style=flat-square" alt="license"></a>
-  <a href="#"><img src="https://img.shields.io/codecov/c/github/youruser/hostinfo?style=flat-square" alt="coverage"></a>
-  <a href="#"><img src="https://img.shields.io/docker/pulls/youruser/hostinfo?style=flat-square" alt="docker pulls"></a>
+  <a href="#"><img src="https://img.shields.io/github/v/release/MaksymLeus/hostinfo?style=flat-square" alt="release"></a>
+  <a href="#"><img src="https://img.shields.io/github/actions/workflow/status/MaksymLeus/hostinfo/ci.yml?style=flat-square&label=CI" alt="ci status"></a>
+  <a href="#"><img src="https://img.shields.io/github/license/MaksymLeus/hostinfo?style=flat-square" alt="license"></a>
+  <a href="#"><img src="https://img.shields.io/codecov/c/github/MaksymLeus/hostinfo?style=flat-square" alt="coverage"></a>
+  <a href="#"><img src="https://img.shields.io/docker/pulls/maximleus/hostinfo?style=flat-square" alt="docker pulls"></a>
   <a href="#"><img src="https://img.shields.io/badge/semantic-release-enabled-e10079?logo=semantic-release&style=flat-square" alt="semantic-release"></a>
 </p>
 
@@ -31,7 +31,7 @@ It’s designed for DevOps/debugging scenarios, observability dashboards, and au
 ### Option A — Local Build (Go)
 
 ```bash
-git clone https://github.com/youruser/hostinfo.git
+git clone https://github.com/MaksymLeus/hostinfo.git
 cd hostinfo
 go build ./cmd/server
 ./server
@@ -147,7 +147,7 @@ docker pull maksymleus/hostinfo:latest
 ```
 Or run:
 ```bash
-docker run -p 8080:8080 youruser/hostinfo:latest
+docker run -p 8080:8080 MaksymLeus/hostinfo:latest
 ```
 ## 📚 Documentation
 See the docs/ folder for:
