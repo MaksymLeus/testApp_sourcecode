@@ -29,6 +29,7 @@ v2.0.0 → breaking change
 | Add new cloud provider support | `feat: add oracle cloud detection` | `1.2.0 → 1.3.0` |
 | Fix EC2 region extraction | `fix: correct EC2 region detection` | `1.3.0 → 1.3.1` |
 | Remove field or change API | `feat!: remove instance_type field` or footer | `1.3.1 → 2.0.0` |
+| Remove field or change API v2| `feat: remove instance_type fieldn\nBREAKING CHANGE: toster` or footer | `1.3.1 → 2.0.0` |
 
 ## 2. Git Workflow
 
