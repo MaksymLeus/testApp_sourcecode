@@ -1,3 +1,10 @@
+# 1.0.0 (2026-01-22)
+
+
+### Features
+
+* Initial commit ([#1](https://github.com/MaksymLeus/testApp_sourcecode/issues/1)) ([8c7fa42](https://github.com/MaksymLeus/testApp_sourcecode/commit/8c7fa424944b231226d8917919926dfab6a39654))
+
 # 1.0.0 (2026-01-16)
 
 
