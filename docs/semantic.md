@@ -28,7 +28,7 @@ Semantic Release automates versioning and releases based on commit messages foll
 
   - `feat`: Minor version bump
   - `fix`: Patch version bump
-  - `BREAKING` CHANGE: Major version bump
+  - `BREAKING CHANGE`: Major version bump
 
 - Changelog is automatically generated.
 - GitHub release is created automatically with the generated notes.
