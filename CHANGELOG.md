@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/MaksymLeus/testApp_sourcecode/compare/v1.0.0...v1.0.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* **server:** panic on nil pointer ([7b2ebee](https://github.com/MaksymLeus/testApp_sourcecode/commit/7b2ebee61e7ab0d19866d04117b33058137f23ee))
+
 # 1.0.0 (2026-01-22)
 
 
