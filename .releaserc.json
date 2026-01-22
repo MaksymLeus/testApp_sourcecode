@@ -6,7 +6,7 @@
       {
         "preset": "conventionalcommits",
         "releaseRules": [
-          { "type": "breaking", "release": "majore" }
+          { "type": "breaking", "release": "major" }
         ]
       }
     ],
