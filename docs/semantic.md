@@ -18,7 +18,6 @@ This document explains how to use Semantic Release in this repository to automat
     - [Troubleshooting](#troubleshooting)
 
 
-
 ### Overview
 
 Semantic Release automates versioning and releases based on commit messages following Conventional Commits
