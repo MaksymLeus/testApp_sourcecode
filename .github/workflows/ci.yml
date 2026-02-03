@@ -1,62 +1,19 @@
-name: Continuous Integration Pipeline
+name: CI
 
 on:
-  release:
-    types: 
-    - published
-  #   - released
-  #   - created
-
-  # workflow_dispatch:
-  push:
+  pull_request:
     branches: [ main ]
-    # tags: 
-    #   - 'v[0-9]+.[0-9]+.[0-9]+'
-
-  # pull_request:
-  #   branches: [ main ]
-
-env:
-  GO_VERSION: '1.24'
-  MAIN_FILE: './cmd/server/hostinfo.go'
+  push:
+    branches-ignore: [ main ]
 
 jobs:
-
-  Verification:
-    # if: github.ref_name != 'main'
-    name: Verification of all checks
+  verification:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Run Lint
-        run: |
-            echo "Running lint..."
-            fmt_out=$(gofmt -l .)
-            if [ -n "$fmt_out" ]; then
-              echo "Go code is not formatted:"
-              echo "$fmt_out"
-              gofmt -d .
-              exit 1
-            fi
-            go vet ./...
-
-  semantic-release:
-    if: >
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write # to be able to publish a GitHub release
-    uses: ./.github/workflows/template-semantic-release.yml
-    with:
-      dry_run: false
-      semantic_version: 20
-    secrets:
-      MY_GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-      
+          go-version: '1.24'
+      - run: |
+          gofmt -l .
+          go vet ./...
