@@ -1,0 +1,17 @@
+name: Release
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  semantic-release:
+    uses: ./.github/workflows/template-semantic-release.yml
+    with:
+      dry_run: false
+      semantic_version: 20
+    secrets:
+      MY_GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
