@@ -1,3 +1,10 @@
+## [3.1.1](https://github.com/MaksymLeus/testApp_sourcecode/compare/v3.1.0...v3.1.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* test CI[1] ([#8](https://github.com/MaksymLeus/testApp_sourcecode/issues/8)) ([0ceb281](https://github.com/MaksymLeus/testApp_sourcecode/commit/0ceb2813dbd30688c0eeac87f8c36283aa325016))
+
 # [3.1.0](https://github.com/MaksymLeus/testApp_sourcecode/compare/v3.0.1...v3.1.0) (2026-02-03)
 
 
