@@ -22,19 +22,19 @@ env:
 
 jobs:
 
-  # Verification:
-  #   if: github.ref_name != 'main'
-  #   name: Verification of all checks
-  #   runs-on: ubuntu-latest
+  Verification:
+    if: github.ref_name != 'main'
+    name: Verification of all checks
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Set up Go ${{ env.GO_VERSION }}
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version: ${{ env.GO_VERSION }}
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
   #     # - name: Cache Go modules
   #     #   uses: actions/cache@v3
@@ -47,17 +47,17 @@ jobs:
   #     #       ${{ runner.os }}-go-
 
 
-  #     - name: Run Lint
-  #       run: |
-  #           echo "Running lint..."
-  #           fmt_out=$(gofmt -l .)
-  #           if [ -n "$fmt_out" ]; then
-  #             echo "Go code is not formatted:"
-  #             echo "$fmt_out"
-  #             gofmt -d .
-  #             exit 1
-  #           fi
-  #           go vet ./...
+      - name: Run Lint
+        run: |
+            echo "Running lint..."
+            fmt_out=$(gofmt -l .)
+            if [ -n "$fmt_out" ]; then
+              echo "Go code is not formatted:"
+              echo "$fmt_out"
+              gofmt -d .
+              exit 1
+            fi
+            go vet ./...
             
   #     - name: Run tests
   #       run: |
