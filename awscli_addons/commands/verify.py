@@ -1,15 +1,13 @@
-import sys, os
-import shutil
+from os import environ
+from shutil import which
 from pathlib import Path
-import boto3
-from botocore.exceptions import ClientError
 
 from awscli_addons.custom import Credentials_save, Config_read
 
 
 
 def check_aws_cli():
-    if shutil.which("aws") is None:
+    if which("aws") is None:
         print("⚠️ AWS CLI not found in PATH. Some fallback features may not work.")
     else:
         print("✅ AWS CLI found in PATH")
@@ -68,9 +66,9 @@ def verify_profile(profile="default"):
         print("ℹ️ Checking environment variables for this profile...")
 
         # Check environment variables
-        aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
-        aws_secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-        aws_session_token = os.environ.get("AWS_SESSION_TOKEN")
+        aws_access_key = environ.get("AWS_ACCESS_KEY_ID")
+        aws_secret_key = environ.get("AWS_SECRET_ACCESS_KEY")
+        aws_session_token = environ.get("AWS_SESSION_TOKEN")
 
         
         missing_env = []
@@ -93,7 +91,10 @@ def verify_profile(profile="default"):
 
 def verify_credentials(key, secret):
     # Create a temporary session with the provided keys
-    session = boto3.Session(
+    from boto3 import Session
+    from botocore.exceptions import ClientError
+
+    session = Session(
         aws_access_key_id=key,
         aws_secret_access_key=secret
     )
@@ -121,13 +122,15 @@ def interactive_configuration(profile_status):
     """
     Ask user to add profile interactively
     """
+    from click import  prompt
+
     for profile, ok in profile_status.items():
         if not ok:
             choice = input(f"Would you like to set credentials for profile '{profile}'? [y/N]: ").strip().lower()
 
             if choice == "y":
               user_input = input("Enter AWS Access Key ID: ").strip()
-              user_secret = input("Enter AWS Secret Access Key: ").strip()
+              user_secret = prompt("Enter AWS Secret Access Key", hide_input=True).strip()
               if not user_input or not user_secret:
                   print("❌ Access Key ID and Secret Access Key cannot be empty. Skipping.")
                   exit(1)
@@ -149,9 +152,11 @@ def interactive_configuration(profile_status):
 
 def check_aws_connectivity():
     # check creds file and with this list check connectivity for each profile, if creds missing skip
-
+    from boto3 import Session
+    from botocore.exceptions import ClientError
+    
     try:
-        session = boto3.Session(profile_name=profile)
+        session = Session(profile_name=profile)
         sts = session.client("sts")
         identity = sts.get_caller_identity()
         print(f"✅ AWS connectivity OK for profile '{profile}'")
@@ -167,7 +172,7 @@ def run_verify(skip_interactive: bool = False):
     check_aws_config_dirs()
 
     # Check profiles and capture their status
-    profile_status = verify_profile(os.environ.get("AWS_PROFILE", "default"))
+    profile_status = verify_profile(environ.get("AWS_PROFILE", "default"))
 
     if skip_interactive:
         print("⚠️ Some profiles are missing or incomplete. Run with --fix to interactively fix them.")

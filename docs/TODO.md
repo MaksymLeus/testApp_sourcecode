@@ -19,5 +19,6 @@
      3. show creads - for curent profile
      4. configure - change all configs + creds
      5. skip_interactive - setup One liner so you don't need wait to interact with cli
-     6. add docs
+     6. Add Upgrade app
+     7. add docs
   2. 

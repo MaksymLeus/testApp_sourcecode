@@ -53,32 +53,32 @@ jobs:
       - name: Generate simple installation doc
         run: |
           cat <<EOF > dist/README_INSTALL.md
-# AWSCLI-Addons Installation
+      # AWSCLI-Addons Installation
 
-Download the correct binary for your OS:
+      Download the correct binary for your OS:
 
-- Linux: awscli-addons-linux-amd64
-- macOS: awscli-addons-darwin-amd64
-- Windows: awscli-addons-windows-amd64.exe
+      - Linux: awscli-addons-linux-amd64
+      - macOS: awscli-addons-darwin-amd64
+      - Windows: awscli-addons-windows-amd64.exe
 
-Make it executable:
+      Make it executable:
 
-\`\`\`bash
-chmod +x <binary>
-\`\`\`
+      \`\`\`bash
+      chmod +x <binary>
+      \`\`\`
 
-Add to PATH (Linux/macOS):
+      Add to PATH (Linux/macOS):
 
-\`\`\`bash
-export PATH=\$HOME/.local/bin:\$PATH
-\`\`\`
+      \`\`\`bash
+      export PATH=\$HOME/.local/bin:\$PATH
+      \`\`\`
 
-Verify installation:
+      Verify installation:
 
-\`\`\`bash
-awscli-addons --help
-\`\`\`
-EOF
+      \`\`\`bash
+      awscli-addons --help
+      \`\`\`
+      EOF
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3

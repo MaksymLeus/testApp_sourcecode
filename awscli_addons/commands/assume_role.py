@@ -1,13 +1,12 @@
-import boto3
-from botocore.exceptions import ClientError
-
 from awscli_addons.custom import Credentials_save
 
 DEFAULT_ASSUME_PROFILE_NAME = "assume_role"
 
-
 def assume(role_arn: str, session_name: str = "AWSCLI-Session", profile_name: str = None):
-    session = boto3.Session(profile_name=profile_name)
+    from  boto3 import Session
+    from botocore.exceptions import ClientError
+
+    session = Session(profile_name=profile_name)
     sts = session.client("sts")
     try:
         response = sts.assume_role(

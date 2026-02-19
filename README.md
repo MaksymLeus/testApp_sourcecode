@@ -64,3 +64,45 @@ python3 -m awscli_addons.cli verify
 should be interactiv if user not exist procide with steps to add 
 
 
+
+
+1) install.sh
+
+  So we have 2 choises :
+  1. req: git + python
+    for install using pip
+  2. req: curl or wget for install directly binery
+
+
+   Force binary:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/.../install.sh | BINARY_CMD=true bash
+   ```
+   Force python:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/.../install.sh | PYTHON_ONLY=true bash
+   ```
+   Auto mode:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/.../install.sh | bash
+   ```
+
+   🔐 How Checksum Must Be Published
+
+   In your GitHub release (in GitHub):
+
+   Upload:
+   ```
+   awscli-addons-linux-amd64
+   awscli-addons-macos-arm64
+   checksums.txt
+   ```
+
+   Generate checksums like:
+   ```bash
+   sha256sum awscli-addons-* > checksums.txt
+   ```
+
+   ADD
+   awscli-addons --version
+
