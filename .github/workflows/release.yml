@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm64, macos-14, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm64, macos-13, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -53,14 +53,10 @@ jobs:
         shell: bash
         run: |
           VERSION="${{ github.event.inputs.version }}"
-
-          # Pass 'quick' command and the current tag version
           ./tools/build.sh quick "${VERSION}"
           
-          # Rename the output to match our artifact naming
+          # Move the binary to the unique name defined above
           mv dist/awscli-addons "dist/${{ steps.info.outputs.artifact_name }}"
-
-
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
