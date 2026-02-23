@@ -206,16 +206,14 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
           body_path: manual_notes.md
+          files: ./artifacts/*
+          append_body: false
           generate_release_notes: true
-            ./artifacts/*
+
+          # LOGIC: 
+          # 1. If 'force' is true, we don't force 'latest' (prevents old versions jumping to top).
+          # 2. If it's a new tag or a regular manual run, it becomes 'latest'.
+          # 3. 'legacy' tells GitHub to determine 'latest' based on date/semver automatically.
+          make_latest: ${{ github.event.inputs.force == 'true' && 'legacy' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # - name: Create or update GitHub Release
-      #   uses: ncipollo/release-action@v1
-      #   with:
-      #     tag: latest
-      #     name: Latest Release
-      #     draft: false
-      #     prerelease: false
-      #     artifacts: dist/*
