@@ -3,6 +3,7 @@ name: Build & Release AWSCLI-Addons
 on:
   push:
     tags: ['v*']
+    branches: [ main ]
   workflow_dispatch:
 
 
@@ -161,7 +162,7 @@ jobs:
             ./artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
+
       # - name: Create or update GitHub Release
       #   uses: ncipollo/release-action@v1
       #   with:
