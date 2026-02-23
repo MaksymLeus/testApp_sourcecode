@@ -10,6 +10,11 @@ on:
         description: 'Release version (e.g., v1.2.3)'
         required: true
         type: string
+      force:
+        description: 'Force update existing release'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -73,7 +78,22 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
+      - name: Check if Release Exists
+        id: check_release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.version || github.ref_name }}"
+          # Check via GitHub CLI
+          EXISTS=$(gh release view "$VERSION" --json tagName --jq '.tagName' 2>/dev/null || echo "not_found")
+          
+          if [ "$EXISTS" != "not_found" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "::error::Release $VERSION already exists. Use 'force' input to overwrite."
+            exit 1 # Stops the job immediately if it exists and force is false
+          fi
+          
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -119,10 +139,10 @@ jobs:
           ## 🏗️ Available Binaries
           | Platform | Architecture | Binary |
           |----------|--------------|--------|
-          | Linux    | AMD64        | [linux-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-amd64) |
-          | Linux    | ARM64        | [linux-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-arm64) |
-          | macOS    | AMD64        | [macos-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-amd64) |
-          | macOS    | ARM64        | [macos-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-arm64) |
+          | Linux    | AMD64        | [awscli-addons-linux-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-amd64) |
+          | Linux    | ARM64        | [awscli-addons-linux-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-arm64) |
+          | macOS (Intel) | AMD64 | [awscli-addons-macos-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-amd64) |
+          | macOS (Apple Silicon) | ARM64 | [awscli-addons-macos-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-arm64) |
           
           Download the appropriate binary for your platform and make it executable:
 
@@ -152,9 +172,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
           body_path: manual_notes.md
-          append_body: true            # ✅ This attaches GitHub's notes BELOW yours
-          generate_release_notes: true  # ✅ This triggers the auto-generation
-          files: |
+          generate_release_notes: true
             ./artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
