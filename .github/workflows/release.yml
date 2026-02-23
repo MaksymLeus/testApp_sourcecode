@@ -90,10 +90,18 @@ jobs:
       - name: Create Manual Instructions
         id: manual_notes
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          # 1. Handle Versioning (Input vs Tag)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            TARGET_COMMIT="${{ github.sha }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+            TARGET_COMMIT="${VERSION}"
+          fi
+
           FILE_NAME="manual_notes.md"
-          
-          # Get previous tag or default to first commit
+
+          # 2. Get previous tag. If none exists, get the first commit
           PREV_TAG=$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)
 
           REPO_URL="https://github.com/${{ github.repository }}"
@@ -135,15 +143,13 @@ jobs:
 
           EOF
           
-          if [ -n "$PREV_TAG" ]; then
-            git log ${PREV_TAG}..${VERSION} --oneline --pretty=format:"* %s (%h)" >> ${FILE_NAME}
-          else
-            echo "Initial release" >> ${FILE_NAME}
-          fi
+          # 3. Generate changelog between previous tag and current commit
+          git log ${PREV_TAG}..${TARGET_COMMIT} --oneline --pretty=format:"* %s (%h)" >> ${FILE_NAME}
 
       - name: Publish Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}_
           body_path: manual_notes.md
           append_body: true            # ✅ This attaches GitHub's notes BELOW yours
           generate_release_notes: true  # ✅ This triggers the auto-generation
