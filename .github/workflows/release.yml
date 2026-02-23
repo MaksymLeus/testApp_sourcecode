@@ -1,5 +1,5 @@
 name: Build & Release AWSCLI-Addons
-run-name: "Build & Release AWSCLI-Addons v${{ inputs.version || github.ref_name }} by @${{ github.actor }}"
+run-name: "Build & Release v${{ inputs.version || github.ref_name }} by @${{ github.actor }}"
 
 on:
   push:
@@ -16,49 +16,52 @@ on:
         type: boolean
         default: false
 
+env:
+  RAW_VERSION: ${{ inputs.version || github.ref_name }}
+  REPO_URL: "https://github.com/${{ github.repository }}"
+
 permissions:
   contents: write
-  packages: write
-  actions: read
+  # packages: write
+  # actions: read
 
 
 jobs:
-
   check_version:
     name: "Check if Release Exists"
     runs-on: ubuntu-latest
     outputs:
-      should_run: ${{ steps.check.outputs.should_run }}
+      clean_version: ${{ steps.version_logic.outputs.version }}
     steps:
-      - name: Checkout (minimal)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check version availability
-        id: check
+      - uses: actions/checkout@v4
+      - name: Version & Availability Logic
+        id: version_logic
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ inputs.version || github.ref_name }}"
-          # Check if release exists
-          if gh release view "$VERSION" >/dev/null 2>&1; then
-            if [ "${{ inputs.force }}" = "true" ]; then
-              echo "Release $VERSION exists but 'force' is true. Proceeding..."
-              echo "should_run=true" >> $GITHUB_OUTPUT
-            else
-              echo "::error::Release $VERSION already exists. Stopping to save build minutes."
-              echo "should_run=false" >> $GITHUB_OUTPUT
-              exit 1 # This stops the whole workflow immediately
-            fi
-          else
-            echo "should_run=true" >> $GITHUB_OUTPUT
+          # Add 'v' only if it's missing
+          [[ "$RAW_VERSION" == v* ]] && VERSION="$RAW_VERSION" || VERSION="v$RAW_VERSION"
+          
+          # Validate Format (v1.2.3)
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid format: $VERSION. Use 1.2.3 or v1.2.3"
+            exit 1
           fi
+
+          # Check GitHub for existing release
+          if gh release view "$VERSION" >/dev/null 2>&1 && [ "${{ inputs.force }}" != "true" ]; then
+            echo "::error::Release $VERSION already exists. Re-run with 'force: true'."
+            exit 1 
+          fi
+
+          # Export for other jobs
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
   build:
     name: Build (${{ matrix.os }})
     needs: [check_version]
-    if: needs.check_version.outputs.should_run == 'true'
+    env:
+      VERSION: ${{ needs.check_version.outputs.clean_version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -74,13 +77,10 @@ jobs:
 
       - name: Detect OS and ARCH
         id: info
-        shell: bash
         run: |
-          # Detect OS (linux, darwin)
           OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-          
-          # Detect Arch (amd64, arm64)
           ARCH=$(uname -m)
+
           [ "$ARCH" == "x86_64" ] && ARCH="amd64"
           [ "$ARCH" == "aarch64" ] && ARCH="arm64"
           
@@ -88,12 +88,9 @@ jobs:
           echo "artifact_name=awscli-addons-${OS}-${ARCH}" >> $GITHUB_OUTPUT
 
 
-      - name: Run Build Script
-        shell: bash
+      - name: Build Binary
         run: |
-          VERSION="${{ github.event.inputs.version }}"
           ./tools/build.sh quick "${VERSION}"
-          
           # Move the binary to the unique name defined above
           mv dist/awscli-addons "dist/${{ steps.info.outputs.artifact_name }}"
 
@@ -105,28 +102,15 @@ jobs:
 
   release:
     name: Create Release
-    needs: [build] 
+    needs: [build, check_version]
+    env:
+      VERSION: ${{ needs.check_version.outputs.clean_version }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Check if Release Exists
-        id: check_release
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ inputs.version || github.ref_name }}"
-          # Check via GitHub CLI
-          EXISTS=$(gh release view "$VERSION" --json tagName --jq '.tagName' 2>/dev/null || echo "not_found")
-          
-          if [ "$EXISTS" != "not_found" ] && [ "${{ inputs.force }}" != "true" ]; then
-            echo "::error::Release $VERSION already exists. Use 'force' input to overwrite."
-            exit 1 # Stops the job immediately if it exists and force is false
-          fi
 
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
@@ -141,27 +125,13 @@ jobs:
           sha256sum awscli-addons-* > checksums.txt
           cat checksums.txt
 
-
       - name: Create Manual Instructions
         id: manual_notes
         run: |
-          # 1. Handle Versioning (Input vs Tag)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-            TARGET_COMMIT="${{ github.sha }}"
-          else
-            VERSION="${GITHUB_REF#refs/tags/}"
-            TARGET_COMMIT="${VERSION}"
-          fi
+          # Get previous tag. If none exists, get the first commit
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -n 1)
 
-          FILE_NAME="manual_notes.md"
-
-          # 2. Get previous tag. If none exists, get the first commit
-          PREV_TAG=$(git describe --tags --abbrev=0 "${VERSION}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)
-
-          REPO_URL="https://github.com/${{ github.repository }}"
-
-          cat > ${FILE_NAME} << EOF
+          cat > manual_notes.md << EOF
           # 🚀 Release ${VERSION}
 
           ## 📦 Installation
@@ -175,45 +145,52 @@ jobs:
           |----------|--------------|--------|
           | Linux    | AMD64        | [awscli-addons-linux-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-amd64) |
           | Linux    | ARM64        | [awscli-addons-linux-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-linux-arm64) |
-          | macOS (Intel) | AMD64 | [awscli-addons-macos-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-amd64) |
-          | macOS (Apple Silicon) | ARM64 | [awscli-addons-macos-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-macos-arm64) |
+          | macOS (Intel) | AMD64 | [awscli-addons-darwin-amd64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-darwin-amd64) |
+          | macOS (Apple Silicon) | ARM64 | [awscli-addons-darwin-arm64](${REPO_URL}/releases/download/${VERSION}/awscli-addons-darwin-arm64) |
           
           Download the appropriate binary for your platform and make it executable:
 
           \`\`\`bash
           wget ${REPO_URL}/releases/download/${VERSION}/<Binary>
-          #or
-          curl ${REPO_URL}/releases/download/${VERSION}/<Binary>
-
           chmod +x <Binary>
           sudo mv <Binary> /usr/local/bin/<Binary>
           \`\`\`
 
           ## 🛡️ Verification
           \`\`\`bash
+          # Linux
           sha256sum -c checksums.txt
+
+          # macOS
+          shasum -a 256 -c checksums.txt
           \`\`\`
 
           ## 📋 What's Changed
 
           EOF
-          
-          # 3. Generate changelog between previous tag and current commit
-          git log ${PREV_TAG}..${TARGET_COMMIT} --oneline --pretty=format:"* %s (%h)" >> ${FILE_NAME}
+          # Generate changelog between previous tag and current commit
+          git log ${PREV_TAG}..HEAD --oneline --pretty=format:"* %s (%h)" >> manual_notes.md
+
+      - name: Force Update Git Tag
+        id: update_tag
+        if: github.event.inputs.force == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f "$VERSION"
+          git push origin "$VERSION" --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }} 
 
       - name: Publish Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          tag_name: ${{ env.VERSION }}
           body_path: manual_notes.md
           files: ./artifacts/*
           append_body: false
+          overwrite: true
           generate_release_notes: true
-
-          # LOGIC: 
-          # 1. If 'force' is true, we don't force 'latest' (prevents old versions jumping to top).
-          # 2. If it's a new tag or a regular manual run, it becomes 'latest'.
-          # 3. 'legacy' tells GitHub to determine 'latest' based on date/semver automatically.
           make_latest: ${{ github.event.inputs.force == 'true' && 'legacy' || 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
