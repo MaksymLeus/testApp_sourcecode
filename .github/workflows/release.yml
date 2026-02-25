@@ -1,5 +1,5 @@
 name: Build & Release AWSCLI-Addons
-run-name: "Build & Release ${{ inputs.version || github.ref_name }} by @${{ github.actor }}"
+run-name: "Build & Release ${{ inputs.version || github.ref_name }}"
 
 on:
   push:
