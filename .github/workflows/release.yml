@@ -1,5 +1,5 @@
 name: Build & Release AWSCLI-Addons
-run-name: "Build & Release v${{ inputs.version || github.ref_name }} by @${{ github.actor }}"
+run-name: "Build & Release ${{ inputs.version || github.ref_name }} by @${{ github.actor }}"
 
 on:
   push:
@@ -189,7 +189,6 @@ jobs:
           body_path: manual_notes.md
           files: ./artifacts/*
           append_body: false
-          overwrite: true
           generate_release_notes: true
           make_latest: ${{ github.event.inputs.force == 'true' && 'legacy' || 'true' }}
         env:
