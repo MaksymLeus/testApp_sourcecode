@@ -112,7 +112,3 @@ unzip awscliv2.zip
 
 
 
-
-
-
-
