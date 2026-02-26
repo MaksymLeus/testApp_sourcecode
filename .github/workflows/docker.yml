@@ -19,9 +19,9 @@ on:
         type: boolean
         default: true
     secrets:
-      DOCKERHUB_USERNAME:
+      DOCKER_USERNAME:
         required: true
-      DOCKERHUB_PASSWORD:
+      DOCKER_PASSWORD:
         required: true
 
 env:
@@ -45,7 +45,7 @@ jobs:
           if [ -n "${{ inputs.image_name }}" ]; then
             FULL_NAME="${{ inputs.image_name }}"
           else
-            FULL_NAME="${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}"
+            FULL_NAME="${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}"
           fi
 
           # Force lowercase for Docker Hub compatibility
@@ -62,8 +62,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ inputs.registry }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -129,17 +129,17 @@ jobs:
       - name: 🧹 Cleanup old Docker Hub tags (Bash)
         if: github.event_name != 'pull_request'
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           # Use the repo name only (e.g., awscli-addons)
           REPO_NAME: ${{ steps.prep.outputs.image_full_name }}
         run: |
           set -e
-          echo "🚀 Starting Cleanup for ${DOCKERHUB_USERNAME}/${REPO_NAME}"
+          echo "🚀 Starting Cleanup for ${DOCKER_USERNAME}/${REPO_NAME}"
 
           # 1. Get Authentication Token
           TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
-            -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_PASSWORD\"}" \
+            -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
             https://hub.docker.com | jq -r .token)
 
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
@@ -149,7 +149,7 @@ jobs:
 
           # 2. Fetch all tags (Page size 100)
           TAGS=$(curl -s -H "Authorization: JWT $TOKEN" \
-            "https://hub.docker.com{DOCKERHUB_USERNAME}/${REPO_NAME}/tags/?page_size=100" | jq -r '.results[].name')
+            "https://hub.docker.com{DOCKER_USERNAME}/${REPO_NAME}/tags/?page_size=100" | jq -r '.results[].name')
 
           # 3. Loop and Delete matching tags
           for tag in $TAGS; do
