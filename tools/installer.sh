@@ -12,7 +12,8 @@ PROJECT_NAME="awscli-addons"
 REPO="MaksymLeus/awscli-addons"
 INSTALL_DIR="${HOME}/.local/bin"
 # Global variables
-VERSION="${VERSION:-latest}"
+VERSION="${VERSION:-latest}"; VERSION=${VERSION#v}
+
 BINARY_ONLY="${BINARY_ONLY:-false}"
 PYTHON_ONLY="${PYTHON_ONLY:-false}"
 # track temp files for the cleanup trap
@@ -24,8 +25,9 @@ TMP_SUM=""
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
 cleanup() {
-  [ -n "${TMP_FILE:-}" ] && rm -f "$TMP_FILE"
-  [ -n "${TMP_SUM:-}" ] && rm -f "$TMP_SUM"
+  # The '|| true' ensures that even if the file is missing, the command succeeds
+  [ -n "${TMP_FILE:-}" ] && rm -f "$TMP_FILE" || true
+  [ -n "${TMP_SUM:-}" ] && rm -f "$TMP_SUM" || true
 }
 # Single trap for the entire script execution
 trap cleanup EXIT
@@ -42,17 +44,24 @@ success() { echo "✅ $1"; }
 # ------------------------
 # Colors for the UI
 # ------------------------
-BOLD="$(tput bold 2>/dev/null || echo '')"
-CYAN="$(tput setaf 6 2>/dev/null || echo '')"
-GREEN="$(tput setaf 2 2>/dev/null || echo '')"
-RESET="$(tput sgr0 2>/dev/null || echo '')"
+if [ -t 1 ]; then
+    BOLD="$(tput bold 2>/dev/null || echo '')"
+    CYAN="$(tput setaf 6 2>/dev/null || echo '')"
+    GREEN="$(tput setaf 2 2>/dev/null || echo '')"
+    RESET="$(tput sgr0 2>/dev/null || echo '')"
+else
+    BOLD=""
+    CYAN=""
+    GREEN=""
+    RESET=""
+fi
 
 # ------------------------
 # Banners
 # ------------------------
 show_success_banner() {
-  # 1. Clear the screen to make the banner pop
-  clear
+  # Only clear if we are in a real terminal (TTY)
+  [ -t 1 ] && clear
 
   # 2. Show the ASCII art
   echo -e "${CYAN}${BOLD}"
@@ -79,7 +88,7 @@ EOF
       success "AWS CLI detected! Alias 'aws addons' is now active."
       echo -e "☁️  AWS Alias: ${CYAN}${BOLD}aws addons --help${RESET}"
   else
-      echo -e "💡 ${YELLOW}Tip: Install AWS CLI v2 to use the 'aws addons' alias.${NC}"
+      echo -e "💡 ${CYAN}Tip: Install AWS CLI v2 to use the 'aws addons' alias.${RESET}"
   fi
 
 
@@ -120,9 +129,7 @@ info "Detected: $OS/$ARCH"
 # Resolve Release URL
 # ------------------------
 resolve_release_url() {
-  if ! command_exists curl; then
-    fail "curl is required for binary installation"
-  fi
+  command_exists curl || fail "curl is required for binary installation"
 
   if [ "$VERSION" = "latest" ]; then
     API_URL="https://api.github.com/repos/$REPO/releases/latest"
@@ -130,15 +137,33 @@ resolve_release_url() {
     API_URL="https://api.github.com/repos/$REPO/releases/tags/v$VERSION"
   fi
 
-	RELEASE_DATA=$(curl -fsSL "$API_URL" || fail "GitHub API unreachable")
+  RELEASE_DATA=$(curl -fsSL "$API_URL" || fail "GitHub API unreachable")
 
-  DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o "https://[^\"]*${OS}-${ARCH}[^\"]*" | head -n1 || true)
-  CHECKSUM_URL=$(echo "$RELEASE_DATA" | grep -o "https://[^\"]*checksums.txt[^\"]*" | head -n1 || true)
+  if command_exists jq; then
+    DOWNLOAD_URL=$(echo "$RELEASE_DATA" | jq -r \
+      --arg pattern "${OS}-${ARCH}" \
+      '.assets[] | select(.name | contains($pattern)) | .browser_download_url' | head -n1)
+    
+    CHECKSUM_URL=$(echo "$RELEASE_DATA" | jq -r \
+      '.assets[] | select(.name == "checksums.txt") | .browser_download_url' | head -n1)
+
+    [ "$DOWNLOAD_URL" = "null" ] && DOWNLOAD_URL=""
+    [ "$CHECKSUM_URL" = "null" ] && CHECKSUM_URL=""
+  else
+    # Fallback to grep (ensure it doesn't fail the script if nothing is found)
+    DOWNLOAD_URL=$(echo "$RELEASE_DATA" | grep -o "https://[^\"]*${OS}-${ARCH}[^\"]*" | head -n1 || true)
+    CHECKSUM_URL=$(echo "$RELEASE_DATA" | grep -o "https://[^\"]*checksums.txt[^\"]*" | head -n1 || true)
+  fi
 
   if [ -z "$DOWNLOAD_URL" ]; then
     info "Could not find a pre-compiled binary for $OS-$ARCH."
     return 1
   fi
+  if [ -z "$CHECKSUM_URL" ]; then
+    info "No checksum file found in release. Skipping verification."
+  fi
+
+  return 0
 }
 
 # ------------------------
@@ -151,7 +176,6 @@ verify_checksum() {
   }
 
   info "Verifying checksum..."
-
   TMP_SUM="$(mktemp)" # Assigned to the global variable
 
   if ! curl -fsSL "$CHECKSUM_URL" -o "$TMP_SUM"; then
@@ -161,7 +185,10 @@ verify_checksum() {
   FILENAME=$(basename "$DOWNLOAD_URL")
   EXPECTED=$(awk -v file="$FILENAME" '$2==file {print $1}' "$TMP_SUM")
 
-  [ -z "$EXPECTED" ] && fail "Could not find checksum for $FILENAME in checksum file"
+  [ -z "$EXPECTED" ] && {
+    info "Could not find checksum for $FILENAME in checksum file. Skipping."
+    return 0
+  }
 
 	if command_exists sha256sum; then
 			ACTUAL=$(sha256sum "$TMP_FILE" | awk '{print $1}')
@@ -218,13 +245,10 @@ install_python() {
   fi
 
   info "Installing via pip..."
+  INSTALL_SOURCE="git+https://github.com/$REPO.git"
+  [ "$VERSION" != "latest" ] && INSTALL_SOURCE="${INSTALL_SOURCE}@$VERSION"
 
-  if [ "$VERSION" = "latest" ]; then
-    $PYTHON -m pip install --user "git+https://github.com/$REPO.git"
-  else
-    $PYTHON -m pip install --user "git+https://github.com/$REPO.git@$VERSION"
-  fi
-
+  $PYTHON -m pip install --user --upgrade "$INSTALL_SOURCE"
   success "Installed via Python"
 }
 
@@ -232,28 +256,34 @@ install_python() {
 # Add to PATH if not already
 # ------------------------
 add_path() {
-	# Check for the existence of RC files instead of shell variables
-	SHELL_RC=""
-	if [ -f "$HOME/.zshrc" ]; then
-		SHELL_RC="$HOME/.zshrc"
-	elif [ -f "$HOME/.bashrc" ]; then
-		SHELL_RC="$HOME/.bashrc"
-	elif [ -f "$HOME/.profile" ]; then
-		SHELL_RC="$HOME/.profile"
-	fi
+  local current_home="${HOME:-/root}"
+  local SHELL_RC=""
+  
+  # Search for the best available RC file
+  for f in ".zshrc" ".bashrc" ".bash_profile" ".profile"; do
+    [ -f "$current_home/$f" ] && SHELL_RC="$current_home/$f" && break
+  done
 
-	if ! echo "$PATH" | grep -Fq "$INSTALL_DIR"; then
-		if [ -n "$SHELL_RC" ] && ! grep -Fxq "export PATH=\"$INSTALL_DIR:\$PATH\"" "$SHELL_RC"; then
-			# Add a newline before the export to ensure it doesn't glue to the last line
-			echo "" >> "$SHELL_RC" 
-			echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$SHELL_RC"
-			info "Added $INSTALL_DIR to PATH in $SHELL_RC"
-			info "Reload shell or run: source $SHELL_RC"
-		else
-			fail "Please add $INSTALL_DIR to your PATH manually"
-		fi
-	fi
+  # Default to .profile for Alpine/Docker if none exist
+  [ -z "$SHELL_RC" ] && SHELL_RC="$current_home/.profile" && touch "$SHELL_RC"
 
+  # 1. Exact match check for current session
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*)
+      success "$INSTALL_DIR is already in PATH."
+      return 0
+      ;;
+  esac
+
+  # 2. Exact match check for the RC file content
+  if grep -Fq "PATH=\"$INSTALL_DIR:\$PATH\"" "$SHELL_RC" >/dev/null 2>&1; then
+    info "PATH export already exists in $SHELL_RC."
+  else
+    echo -e "\nexport PATH=\"$INSTALL_DIR:\$PATH\"" >> "$SHELL_RC"
+    success "Added $INSTALL_DIR to PATH in $SHELL_RC"
+  fi
+
+  info "To activate, run: source $SHELL_RC"
 }
 
 # ------------------------
@@ -262,80 +292,62 @@ add_path() {
 add_awscli_alias() {
   info "Configuring AWS CLI alias..."
   
+  local current_home="${HOME:-/root}"
+  local alias_dir="$current_home/.aws/cli"
+  local alias_file="$alias_dir/alias"
+  
   # Ensure the directory exists
-  mkdir -p "$HOME/.aws/cli"
+  mkdir -p "$alias_dir"
+  touch "$alias_file"
   
-  local alias_file="$HOME/.aws/cli/alias"
-  
-  # Check if [toplevel] header exists, if not, create it
-  if [ ! -f "$alias_file" ] || ! grep -q "\[toplevel\]" "$alias_file"; then
-    echo "[toplevel]" >> "$alias_file"
-  fi
+  # Ensure the [toplevel] section exists
+  grep -q "\[toplevel\]" "$alias_file" || echo -e "\n[toplevel]" >> "$alias_file"
 
-  # Define the alias string (using "$@" to pass all arguments correctly)
-  # We use a literal '$' for the variables so they aren't expanded during 'echo'
-  local alias_cmd="addons = !f() { $INSTALL_DIR/$PROJECT_NAME \"\$@\"; }; f"
-
-  # Append the alias if it's not already there
   if ! grep -q "addons =" "$alias_file"; then
-    echo "$alias_cmd" >> "$alias_file"
-    success "AWS CLI alias 'aws addons' configured!"
-  else
-    info "AWS CLI alias 'addons' already exists."
+    echo "addons = !${PROJECT_NAME}" >> "$alias_file"
+    success "Alias 'aws addons' configured."
   fi
 }
-
-
-
 
 # ------------------------
 # Check Existing Install
 # ------------------------
 check_existing_install() {
   if command_exists "$PROJECT_NAME"; then
-    # Try to get the current version from the binary
-    # Assumes your app supports --version
-    CURRENT_V=$("$PROJECT_NAME" --version 2>/dev/null | awk '{print $NF}')
-    
-    if [ "$VERSION" = "latest" ]; then
-      # If they want latest, we usually proceed unless you add 
-      # a complex API check to compare CURRENT_V with GitHub's latest
-      info "Found existing $PROJECT_NAME ($CURRENT_V). Updating to latest..."
-    elif [ "v$VERSION" = "$CURRENT_V" ] || [ "$VERSION" = "$CURRENT_V" ]; then
+    CURRENT_V=$("$PROJECT_NAME" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)
+    if [ "$VERSION" != "latest" ] && [ "$VERSION" = "$CURRENT_V" ]; then
       success "$PROJECT_NAME $VERSION is already installed. Skipping."
       exit 0
     fi
   fi
 }
 
-# ------------------------
+# =======================================
 # Installation Flow
-# ------------------------
+# =======================================
 
 check_existing_install
 
 if [ "$PYTHON_ONLY" = "true" ]; then
-	info "Forced Python installation"
-	install_python
-	exit 0
-fi
-
-if [ "$BINARY_ONLY" = "true" ]; then
-	info "Forced Binary installation"
-	install_binary || fail "Binary installation failed"
-	exit 0
-fi
-
-# Smart fallback
-if install_binary; then
-	success "Binary installation successful"
+    install_python
+elif [ "$BINARY_ONLY" = "true" ]; then
+    install_binary || fail "Binary installation failed."
 else
-  info "Binary unavailable, falling back to Python..."
-  install_python
+    # 2. Smart Fallback: Try binary first, then python
+    if ! install_binary; then
+        info "Binary unavailable or incompatible, falling back to Python..."
+        install_python
+    fi
 fi
 
 add_path
 add_awscli_alias
 
-# The Grand Finale
-show_success_banner
+# Skip banner if in Docker, CI, or non-interactive shell
+if [ -f /.dockerenv ] || [ "${CI:-}" = "true" ] || [ ! -t 1 ]; then
+  info "Installation complete."
+else
+  show_success_banner
+fi
+
+exit 0

@@ -100,9 +100,19 @@ jobs:
           name: ${{ steps.info.outputs.artifact_name }}
           path: dist/${{ steps.info.outputs.artifact_name }}
 
+  publish-docker:
+    needs: [check_version]
+    uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{ needs.check_version.outputs.clean_version }}
+      push: false
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
   release:
     name: Create Release
-    needs: [build, check_version]
+    needs: [check_version, build, publish-docker]
     env:
       VERSION: ${{ needs.check_version.outputs.clean_version }}
     runs-on: ubuntu-latest

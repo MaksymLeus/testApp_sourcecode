@@ -108,3 +108,9 @@ To build the project from source or add new commands:
 	```bash
 	./tools/build.sh
 	```
+## Docker
+
+	# Example: Check whoami (mounting your local AWS credentials)
+   ```bash
+   docker run --rm -v ~/.aws:/root/.aws awscli-addons whoami
+   ```
