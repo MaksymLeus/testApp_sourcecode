@@ -59,7 +59,7 @@ jobs:
 
   build:
     name: Build (${{ matrix.os }})
-    needs: [check_version]
+    needs: [check_version, publish-docker]
     env:
       VERSION: ${{ needs.check_version.outputs.clean_version }}
     runs-on: ${{ matrix.os }}
