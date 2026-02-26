@@ -128,12 +128,38 @@ jobs:
           echo "docker pull ${{ inputs.registry }}/${{ steps.prep.outputs.image_full_name }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
-      # - name: Cleanup old Docker Hub tags
-      #   uses: data-science-at-scale/delete-docker-hub-tag@v0.6.1
-      #   with:
-      #     repository: ${{ steps.prep.outputs.repo_only }}
-      #     # For Docker Hub, use your username and a Personal Access Token
-      #     username: ${{ secrets.DOCKERHUB_USERNAME }}
-      #     password: ${{ secrets.DOCKERHUB_TOKEN }}
-      #     # Regex for tags to delete (e.g., all except latest and semver)
-      #     tag: '^sha-.*$' # Example: delete all git-sha tags
+      - name: 🧹 Cleanup old Docker Hub tags (Bash)
+        if: github.event_name != 'pull_request'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          # Use the repo name only (e.g., awscli-addons)
+          REPO_NAME: ${{ steps.prep.outputs.image_full_name }}
+        run: |
+          set -e
+          echo "🚀 Starting Cleanup for ${DOCKERHUB_USERNAME}/${REPO_NAME}"
+
+          # 1. Get Authentication Token
+          TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
+            -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
+            https://hub.docker.com | jq -r .token)
+
+          if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
+            echo "❌ Failed to authenticate with Docker Hub. Check credentials."
+            exit 1
+          fi
+
+          # 2. Fetch all tags (Page size 100)
+          TAGS=$(curl -s -H "Authorization: JWT $TOKEN" \
+            "https://hub.docker.com{DOCKERHUB_USERNAME}/${REPO_NAME}/tags/?page_size=100" | jq -r '.results[].name')
+
+          # 3. Loop and Delete matching tags
+          for tag in $TAGS; do
+            # REGEX: Matches 'sha-' tags. 
+            # EXCLUDES: 'latest' and SemVer (e.g. 1.2.3 or v1.2.3)
+            if [[ "$tag" =~ ^sha-.*$ ]]; then
+              echo "🗑️ Deleting old tag: $tag"
+            else
+              echo "📌 Keeping tag: $tag"
+            fi
+          done
