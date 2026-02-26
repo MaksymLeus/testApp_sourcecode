@@ -21,7 +21,7 @@ on:
     secrets:
       DOCKERHUB_USERNAME:
         required: true
-      DOCKERHUB_TOKEN:
+      DOCKERHUB_PASSWORD:
         required: true
 
 env:
@@ -63,7 +63,7 @@ jobs:
         with:
           registry: ${{ inputs.registry }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -130,7 +130,7 @@ jobs:
         if: github.event_name != 'pull_request'
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           # Use the repo name only (e.g., awscli-addons)
           REPO_NAME: ${{ steps.prep.outputs.image_full_name }}
         run: |
@@ -139,7 +139,7 @@ jobs:
 
           # 1. Get Authentication Token
           TOKEN=$(curl -s -H "Content-Type: application/json" -X POST \
-            -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_TOKEN\"}" \
+            -d "{\"username\": \"$DOCKERHUB_USERNAME\", \"password\": \"$DOCKERHUB_PASSWORD\"}" \
             https://hub.docker.com | jq -r .token)
 
           if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
