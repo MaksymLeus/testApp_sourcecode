@@ -18,25 +18,39 @@ jobs:
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          REPO: ${{ github.event.repository.name }}
           # Pattern to PROTECT: latest and any semver like v1.2.3
           EXCLUDE_PATTERN: "^(latest|v[0-9]+\\.[0-9]+\\.[0-9]+)$"
         run: |
-          echo "Logging in to Docker Hub..."
+          
+          # 1. Force lowercase for Docker Hub compatibility
+          RAW_REPO="${{ github.event.repository.name }}"
+          REPO=$(echo "$RAW_REPO" | tr '[:upper:]' '[:lower:]')
+          USER=$(echo "$DOCKER_USERNAME" | tr '[:upper:]' '[:lower:]')
+
+          echo "Logging in to Docker Hub as $USER..."
           TOKEN=$(curl -s -H "Content-Type: application/json" \
               -X POST \
               -d "{\"username\": \"$DOCKER_USERNAME\", \"password\": \"$DOCKER_PASSWORD\"}" \
               https://hub.docker.com/v2/users/login/ | jq -r .token)
 
           if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
-              echo "Error: Authentication failed."
+              echo "::error::Authentication failed. Check your DOCKER_PASSWORD/Token permissions."
+              exit 1
+          fi
+          
+          echo "Fetching tags for $USER/$REPO..."
+
+          # 2. Capture response and check for errors before parsing
+          RESPONSE=$(curl -s -H "Authorization: JWT $TOKEN" \
+              "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/?page_size=100")
+          
+          # Check if the response actually contains results
+          if ! echo "$RESPONSE" | jq -e '.results' > /dev/null; then
+              echo "::error::Could not find repository or tags. API Response: $RESPONSE"
               exit 1
           fi
 
-          echo "Fetching tags for $DOCKER_USERNAME/$REPO..."
-          # Note: Added -L to handle redirects and updated the jq query for safety
-          TAGS=$(curl -s -H "Authorization: JWT $TOKEN" \
-              "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$REPO/tags/?page_size=100" | jq -r '.results[].name')
+          TAGS=$(echo "$RESPONSE" | jq -r '.results[].name')
 
           for TAG in $TAGS; do
               if [[ "$TAG" =~ $EXCLUDE_PATTERN ]]; then
@@ -46,16 +60,16 @@ jobs:
 
               echo "--> [DELETING] Unwanted tag: $TAG"
               
-              # Perform actual deletion
-            #   DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            #       -X DELETE \
-            #       -H "Authorization: JWT $TOKEN" \
-            #       "https://hub.docker.com/v2/repositories/$DOCKER_USERNAME/$REPO/tags/$TAG/")
+              # Uncomment these lines when you are ready to go live!
+              # DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              #     -X DELETE \
+              #     -H "Authorization: JWT $TOKEN" \
+              #     "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/$TAG/")
               
-            #   if [ "$DELETE_CODE" == "204" ]; then
-            #       echo "    Successfully removed $TAG"
-            #   else
-            #       echo "    Failed to remove $TAG (HTTP $DELETE_CODE)"
-            #   fi
+              # if [ "$DELETE_CODE" == "204" ]; then
+              #     echo "    Successfully removed $TAG"
+              # else
+              #     echo "    Failed to remove $TAG (HTTP $DELETE_CODE)"
+              # fi
           done
           echo "Cleanup finished."
