@@ -37,7 +37,7 @@ jobs:
               echo "::error::Authentication failed. Check your DOCKER_PASSWORD/Token permissions."
               exit 1
           fi
-          
+
           echo "Fetching tags for $USER/$REPO..."
 
           # 2. Capture response and check for errors before parsing
@@ -60,16 +60,15 @@ jobs:
 
               echo "--> [DELETING] Unwanted tag: $TAG"
               
-              # Uncomment these lines when you are ready to go live!
-              # DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              #     -X DELETE \
-              #     -H "Authorization: JWT $TOKEN" \
-              #     "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/$TAG/")
+              DELETE_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                  -X DELETE \
+                  -H "Authorization: JWT $TOKEN" \
+                  "https://hub.docker.com/v2/repositories/$USER/$REPO/tags/$TAG/")
               
-              # if [ "$DELETE_CODE" == "204" ]; then
-              #     echo "    Successfully removed $TAG"
-              # else
-              #     echo "    Failed to remove $TAG (HTTP $DELETE_CODE)"
-              # fi
+              if [ "$DELETE_CODE" == "204" ]; then
+                  echo "    Successfully removed $TAG"
+              else
+                  echo "    Failed to remove $TAG (HTTP $DELETE_CODE)"
+              fi
           done
           echo "Cleanup finished."
