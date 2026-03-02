@@ -1,7 +1,8 @@
 ## Roadmap
 - add Docker container to docker hub + repo dockerfile
   <!-- - add docker hub (dh) -->
-  - add docker to github wf
+  <!-- - add docker to github wf -->
+  - setup (Cleanup old Docker Hub tags) in gh wf
   - add dh to readme
   - add docs to dockerhub
   

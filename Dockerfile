@@ -29,8 +29,7 @@ RUN set -eux; \
 
 # 3. Copy and run your Addons installer
 COPY . .
-# remove after test
-ENV VERSION="feature/init" 
+
 ENV PATH="/root/.local/bin:$PATH"
 
 RUN chmod +x ./tools/installer.sh && \
